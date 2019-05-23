@@ -888,9 +888,10 @@ class Modify extends PointerInteraction {
    */
   handlePointerAtPixel_(pixel, map) {
     const pixelCoordinate = map.getCoordinateFromPixel(pixel);
+    const pixelTolerance = this.pixelTolerance_;
     const sortByDistance = function(a, b) {
-      return pointDistanceToSegmentDataSquared(pixelCoordinate, a) -
-          pointDistanceToSegmentDataSquared(pixelCoordinate, b);
+      return pointDistanceToSegmentDataSquared(pixelCoordinate, a, pixelTolerance) -
+        pointDistanceToSegmentDataSquared(pixelCoordinate, b, pixelTolerance);
     };
 
     const box = buffer(createOrUpdateFromCoordinate(pixelCoordinate),
@@ -1197,12 +1198,15 @@ function compareIndexes(a, b) {
  *        which to calculate the distance.
  * @param {SegmentData} segmentData The object describing the line
  *        segment we are calculating the distance to.
+ * @param {Number} pixelTolerance interaction.Modify.pixelTolerance_
+ *        
  * @return {number} The square of the distance between a point and a line segment.
  */
-function pointDistanceToSegmentDataSquared(pointCoordinates, segmentData) {
+function pointDistanceToSegmentDataSquared(pointCoordinates, segmentData, pixelTolerance = 1) {
   const geometry = segmentData.geometry;
+  const geometryType = geometry.getType();
 
-  if (geometry.getType() === GeometryType.CIRCLE) {
+  if (geometryType === GeometryType.CIRCLE) {
     const circleGeometry = /** @type {import("../geom/Circle.js").default} */ (geometry);
 
     if (segmentData.index === CIRCLE_CIRCUMFERENCE_INDEX) {
@@ -1212,6 +1216,9 @@ function pointDistanceToSegmentDataSquared(pointCoordinates, segmentData) {
             Math.sqrt(distanceToCenterSquared) - circleGeometry.getRadius();
       return distanceToCircumference * distanceToCircumference;
     }
+  } else if (geometryType === GeometryType.POINT) {
+    const distanceToCenterSquared = squaredCoordinateDistance(geometry.getCoordinates(), pointCoordinates);
+    return Math.sqrt(distanceToCenterSquared) * pixelTolerance;
   }
   return squaredDistanceToSegment(pointCoordinates, segmentData.segment);
 }
